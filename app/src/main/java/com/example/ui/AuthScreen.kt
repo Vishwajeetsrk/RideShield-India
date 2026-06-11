@@ -312,14 +312,12 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "Resend Code",
-                    color = CssThemeVariables.`--accent-neon-blue`,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .clickable { viewModel.sendOtp(phone) }
-                        .padding(8.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ResendOtpContainer(
+                    phone = phone,
+                    viewModel = viewModel,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -537,6 +535,203 @@ fun KycRowItem(
             if (expanded && enabled && !isCompleted) {
                 Spacer(modifier = Modifier.height(12.dp))
                 content()
+            }
+        }
+    }
+}
+
+/**
+ * Responsive, Glassmorphic Resend OTP container.
+ * Features a real-time countdown timer, immediate dynamic success feedback,
+ * and high-performance interactive diagnostic troubleshooting.
+ */
+@Composable
+fun ResendOtpContainer(
+    phone: String,
+    viewModel: RideShieldViewModel,
+    modifier: Modifier = Modifier
+) {
+    var countdown by remember { mutableStateOf(30) }
+    var isSendingLocal by remember { mutableStateOf(false) }
+    var feedbackMessage by remember { mutableStateOf<String?>(null) }
+    var showTroubleshoot by remember { mutableStateOf(false) }
+
+    LaunchedEffect(key1 = countdown) {
+        if (countdown > 0) {
+            kotlinx.coroutines.delay(1000L)
+            countdown--
+        } else {
+            showTroubleshoot = true
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x0AFFFFFF))
+            .border(1.dp, Color(0x1F94A3B8), RoundedCornerShape(16.dp))
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Sms,
+                    contentDescription = null,
+                    tint = if (countdown > 0) CssThemeVariables.`--text-muted` else CssThemeVariables.`--accent-neon-cyan`,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (countdown > 0) "Next OTP in" else "Request limit refreshed",
+                    color = CssThemeVariables.`--text-muted`,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (countdown > 0) Color(0x1A6366F1) else Color(0x1A34D399))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = if (countdown > 0) "${countdown}s" else "READY",
+                    color = if (countdown > 0) CssThemeVariables.`--accent-neon-blue` else CssThemeVariables.`--accent-neon-cyan`,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Countdown progress bar tracking 30s
+        val progress = (countdown.toFloat() / 30f).coerceIn(0f, 1f)
+        LinearProgressIndicator(
+            progress = { progress },
+            color = CssThemeVariables.`--accent-neon-blue`,
+            trackColor = Color(0x1AFFFFFF),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(1.5.dp))
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Manual Resend Retry button
+        Button(
+            onClick = {
+                isSendingLocal = true
+                viewModel.sendOtp(phone)
+                countdown = 30
+                feedbackMessage = "Secure SMS request re-broadcast successfully! Code reset to 123456."
+                isSendingLocal = false
+            },
+            enabled = countdown == 0 && !isSendingLocal,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CssThemeVariables.`--accent-neon-blue`,
+                disabledContainerColor = Color(0x0CFFFFFF)
+            ),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .testTag("resend_otp_retry_btn")
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Refresh, contentDescription = "Retry", modifier = Modifier.size(14.dp), tint = Color.White)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Request OTP Resend",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (countdown == 0) Color.White else Color.Gray
+                )
+            }
+        }
+
+        feedbackMessage?.let { msg ->
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0x1410B981))
+                    .border(1.dp, Color(0x3310B981), RoundedCornerShape(8.dp))
+                    .padding(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Success",
+                        tint = AccentTeal,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = msg,
+                        color = AccentTeal,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // Active Diagnostics Troublshooter Info
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .clickable { showTroubleshoot = !showTroubleshoot }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "OTP failed to arrive? Get instant help",
+                color = CssThemeVariables.`--accent-neon-cyan`,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Icon(
+                imageVector = if (showTroubleshoot) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                tint = CssThemeVariables.`--accent-neon-cyan`,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+
+        AnimatedVisibility(visible = showTroubleshoot) {
+            Column(
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x1F000000))
+                    .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(10.dp))
+                    .padding(10.dp)
+            ) {
+                Text(
+                    text = "Why is the OTP not coming to my phone?",
+                    color = CssThemeVariables.`--text-primary`,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    text = "1. Sandbox Environment Network: Real cellular gateway servers are simulated in this project context to support 100% stable offline test instances.\n" +
+                           "2. Instant Login Master Key: Entering simulated security bypass key 123456 (or any standard 6 digits) lets you log in instantly.",
+                    color = CssThemeVariables.`--text-muted`,
+                    fontSize = 10.5.sp,
+                    lineHeight = 14.sp
+                )
             }
         }
     }

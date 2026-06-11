@@ -1,0 +1,6 @@
+{
+  "name": "RideShield India",
+  "description": "An AI-powered premium Car & Bike Rental Marketplace for India with real-time safety, CCTV simulations, and AI assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

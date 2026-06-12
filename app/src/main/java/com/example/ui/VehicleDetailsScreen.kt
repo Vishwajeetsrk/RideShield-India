@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -334,6 +335,381 @@ fun VehicleDetailsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Interactive Rental Period block with Date picker trigger
+            var showDatePickerDialog by remember { mutableStateOf(false) }
+            val rentalStartDate by viewModel.rentalStartDate.collectAsState()
+            val rentalEndDate by viewModel.rentalEndDate.collectAsState()
+
+            Text(
+                text = "RENTAL PERIOD",
+                color = TextMutedGlow,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x0EFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, BorderGlass, RoundedCornerShape(16.dp))
+                    .clickable { showDatePickerDialog = true }
+                    .testTag("details_date_picker_trigger")
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = RideNeonCyan, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(text = "TAP TO SCHEDULE RENTAL RANGE", color = RideNeonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "$rentalStartDate to $rentalEndDate",
+                                color = TextPrimaryGlow,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                    Icon(Icons.Default.EditCalendar, contentDescription = null, tint = RideNeonCyan, modifier = Modifier.size(20.dp))
+                }
+            }
+
+            if (showDatePickerDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDatePickerDialog = false },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = RideNeonCyan)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("CHOOSE RENTAL WINDOW", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimaryGlow)
+                        }
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text(
+                                text = "Adjust pickup and drop schedules below to customize your AI-Shield protected journey.",
+                                color = TextMutedGlow,
+                                fontSize = 11.sp
+                            )
+
+                            var startTemp by remember { mutableStateOf(rentalStartDate) }
+                            var endTemp by remember { mutableStateOf(rentalEndDate) }
+
+                            OutlinedTextField(
+                                value = startTemp,
+                                onValueChange = { startTemp = it },
+                                label = { Text("Schedules Start Date", color = TextMutedGlow) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimaryGlow,
+                                    unfocusedTextColor = TextPrimaryGlow,
+                                    focusedBorderColor = RideNeonCyan,
+                                    unfocusedBorderColor = BorderGlass
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("details_picker_start_date"),
+                                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, tint = RideNeonCyan) }
+                            )
+
+                            OutlinedTextField(
+                                value = endTemp,
+                                onValueChange = { endTemp = it },
+                                label = { Text("Schedules End Date", color = TextMutedGlow) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimaryGlow,
+                                    unfocusedTextColor = TextPrimaryGlow,
+                                    focusedBorderColor = RideNeonCyan,
+                                    unfocusedBorderColor = BorderGlass
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("details_picker_end_date"),
+                                leadingIcon = { Icon(Icons.Default.Event, contentDescription = null, tint = RideNeonCyan) }
+                            )
+
+                            // Save Actions
+                            Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
+                                TextButton(onClick = { showDatePickerDialog = false }) {
+                                    Text("Cancel", color = AccentRedSOS)
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Button(
+                                    onClick = {
+                                        viewModel.rentalStartDate.value = startTemp
+                                        viewModel.rentalEndDate.value = endTemp
+                                        showDatePickerDialog = false
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = RideNeonCyan),
+                                    modifier = Modifier.testTag("details_picker_save_button")
+                                ) {
+                                    Text("Save Schedule", color = DeepSlateBackground, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {},
+                    containerColor = Color(0xFF0F172A),
+                    modifier = Modifier.border(1.dp, BorderGlass, RoundedCornerShape(28.dp))
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // REVIEWS & COMMUNITY RATINGS SECTION
+            Text(
+                text = "PILOT REVIEWS & RATINGS",
+                color = TextMutedGlow,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // Dynamic aggregate rating card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x0EFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, BorderGlass, RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "4.9",
+                                    color = TextPrimaryGlow,
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Row {
+                                        repeat(5) {
+                                            Icon(
+                                                imageVector = Icons.Default.Star,
+                                                contentDescription = "Star",
+                                                tint = RideNeonCyan,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "Based on 48 pilot reviews",
+                                        color = TextMutedGlow,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+                        // Tag Focus indicator
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(RideNeonCyan.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Highly Rated",
+                                color = RideNeonCyan,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                             )
+                        }
+                    }
+
+                    Divider(
+                        color = BorderGlass,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+
+                    // Individual Reviews List (Collapsible / clean scrolling or list of comments)
+                    val sampleReviews = listOf(
+                        Triple("Rahul S.", 5, "Outstanding performance and pristine AI-Shield security. The vehicle was perfectly keyless and cleanly vacuumed!"),
+                        Triple("Aditi Sharma", 5, "Smooth unlock and the real-time telemetry alerts made me feel completely secure driving late. 10/10 recommendation!"),
+                        Triple("Vijay K.", 4, "Sensory safety system is incredibly accurate. Battery was fully charged. Satisfaction guaranteed.")
+                    )
+
+                    sampleReviews.forEachIndexed { index, (author, rating, text) ->
+                        Column(modifier = Modifier.fillMaxWidth().padding(bottom = if (index < sampleReviews.size - 1) 12.dp else 0.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = author,
+                                    color = TextPrimaryGlow,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Row {
+                                    repeat(rating) {
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = "Star",
+                                            tint = RideNeonCyan,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = text,
+                                color = TextMutedGlow,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // PREMIUM SAFETY INSURANCE COMPONENT
+            var includeInsurance by remember { mutableStateOf(false) }
+            var insuranceLevel by remember { mutableStateOf("GOLD") } // "SILVER" or "GOLD"
+
+            val basePrice = vehicle!!.pricePerHr
+            val insurancePremiumY = if (includeInsurance) {
+                if (insuranceLevel == "GOLD") 60.0 else 25.0
+            } else {
+                0.0
+            }
+            val adjustedRate = basePrice + insurancePremiumY
+
+            Text(
+                text = "OPTIONAL SHIELD PROTECTION",
+                color = TextMutedGlow,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = if (includeInsurance) Color(0x1F34D399) else Color(0x0EFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        1.dp,
+                        if (includeInsurance) RideNeonCyan.copy(alpha = 0.6f) else BorderGlass,
+                        RoundedCornerShape(16.dp)
+                    )
+                    .testTag("insurance_selection_card")
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(0.8f)) {
+                            Checkbox(
+                                checked = includeInsurance,
+                                onCheckedChange = { includeInsurance = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = RideNeonCyan,
+                                    uncheckedColor = TextMutedGlow,
+                                    checkmarkColor = DeepSlateBackground
+                                ),
+                                modifier = Modifier.testTag("insurance_checkbox")
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Premium Safety Insurance",
+                                    color = TextPrimaryGlow,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Zero liability collision & advanced sensor warranty cover.",
+                                    color = TextMutedGlow,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                        Text(
+                            text = if (includeInsurance) (if (insuranceLevel == "GOLD") "+₹60/hr" else "+₹25/hr") else "Optional",
+                            color = if (includeInsurance) RideNeonCyan else TextMutedGlow,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+
+                    if (includeInsurance) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        
+                        Text(
+                            text = "CHOOSE COVERAGE TIER",
+                            color = RideNeonCyan,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF0F172A))
+                                .border(1.dp, BorderGlass, RoundedCornerShape(10.dp))
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (insuranceLevel == "SILVER") RideNeonCyan else Color.Transparent)
+                                    .clickable { insuranceLevel = "SILVER" }
+                                    .padding(vertical = 8.dp)
+                                    .testTag("insurance_level_silver"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "SILVER (+₹25/hr)",
+                                    color = if (insuranceLevel == "SILVER") DeepSlateBackground else TextMutedGlow,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (insuranceLevel == "GOLD") RideNeonCyan else Color.Transparent)
+                                    .clickable { insuranceLevel = "GOLD" }
+                                    .padding(vertical = 8.dp)
+                                    .testTag("insurance_level_gold"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "GOLD ULTRA (+₹60/hr)",
+                                    color = if (insuranceLevel == "GOLD") DeepSlateBackground else TextMutedGlow,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             // PRICING BLOCK & BOOK NOW TRIGGER
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -341,13 +717,19 @@ fun VehicleDetailsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "TOTAL RATE (BASE)", color = TextMutedGlow, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "₹${vehicle!!.pricePerHr} / Hour", color = TextPrimaryGlow, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                    Text(
+                        text = if (includeInsurance) "TOTAL RATE (INSURED)" else "TOTAL RATE (BASE)",
+                        color = if (includeInsurance) RideNeonCyan else TextMutedGlow,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(text = "₹${"%.0f".format(adjustedRate)} / Hour", color = TextPrimaryGlow, fontSize = 24.sp, fontWeight = FontWeight.Black)
                 }
 
                 Button(
                     onClick = {
-                        viewModel.startBooking(vehicle!!)
+                        viewModel.startBooking(vehicle!!, includeInsurance, if (includeInsurance) insuranceLevel else null)
                         onBack()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = RideNeonCyan),

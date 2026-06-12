@@ -9,6 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -48,12 +50,15 @@ fun AuthScreen(viewModel: RideShieldViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp)
                 .navigationBarsPadding()
                 .statusBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Header Logo
             Icon(
                 imageVector = Icons.Default.Shield,
@@ -92,6 +97,59 @@ fun AuthScreen(viewModel: RideShieldViewModel) {
             } else if (screenState == "kyc") {
                 KycVerificationInterface(viewModel)
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+            KycAndRentalFaqAccordionSection()
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+fun UnifiedAuthTabSwitcher(selectedMode: String, onSelectionChange: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 20.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF0F172A))
+            .border(1.dp, CssThemeVariables.`--border-glass`, RoundedCornerShape(12.dp))
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (selectedMode == "OTP") CssThemeVariables.`--accent-neon-cyan` else Color.Transparent)
+                .clickable { onSelectionChange("OTP") }
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "MOBILE OTP",
+                color = if (selectedMode == "OTP") DeepSlateBackground else CssThemeVariables.`--text-muted`,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.5.sp
+            )
+        }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (selectedMode == "FIREBASE") CssThemeVariables.`--accent-neon-cyan` else Color.Transparent)
+                .clickable { onSelectionChange("FIREBASE") }
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "EMAIL GATEWAY",
+                color = if (selectedMode == "FIREBASE") DeepSlateBackground else CssThemeVariables.`--text-muted`,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.5.sp
+            )
         }
     }
 }
@@ -121,6 +179,11 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            UnifiedAuthTabSwitcher(
+                selectedMode = authMode,
+                onSelectionChange = { authMode = it }
+            )
+
             Text(
                 text = "Firebase Cloud Auth Center",
                 color = CssThemeVariables.`--text-primary`,
@@ -240,7 +303,7 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { viewModel.signUpAndSyncFirebase(email, name, phone, firebaseOption) },
+                onClick = { viewModel.signUpAndSyncFirebase(email, name, phone, password, firebaseOption) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
@@ -266,17 +329,7 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
                 Text(text = authError!!, color = AccentRedSOS, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "← Use Aadhaar Mobile OTP instead",
-                color = CssThemeVariables.`--accent-neon-cyan`,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .clickable { authMode = "OTP" }
-                    .padding(8.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
         }
     } else {
         AnimatedContent(targetState = otpSent, label = "otpTransition") { isSent ->
@@ -291,6 +344,11 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    UnifiedAuthTabSwitcher(
+                        selectedMode = authMode,
+                        onSelectionChange = { authMode = it }
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -302,20 +360,6 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(CssThemeVariables.`--accent-neon-cyan`.copy(alpha = 0.15f))
-                                .clickable { authMode = "FIREBASE" }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                "Use Firebase Auth",
-                                color = CssThemeVariables.`--accent-neon-cyan`,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
                     }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -930,3 +974,103 @@ fun ResendOtpContainer(
         }
     }
 }
+
+@Composable
+fun KycAndRentalFaqAccordionSection() {
+    val faqItems = listOf(
+        FaqItem(
+            question = "How does the digital KYC verification work?",
+            answer = "Our Aadhaar & Driving License verification uses high-security encryption to validate your identity in real-time. Once submitted, your credentials are fully authorized so you can book rides securely without delay."
+        ),
+        FaqItem(
+            question = "What documents are required to book?",
+            answer = "To hire a vehicle, you need a valid Aadhaar UID (or passport) for identity, and a matching country-authorized Driving License (DL). Unverified profiles cannot lock down telemetry."
+        ),
+        FaqItem(
+            question = "What is the premium zero-liability insurance?",
+            answer = "Our 'Premium Safety Insurance' option covers all collision risks, roadside towing, and sensor-monitored vehicle damages with absolute zero-deductible. Highly recommended for peace of mind!"
+        ),
+        FaqItem(
+            question = "What is the policy for vehicle fuel and battery?",
+            answer = "For Electric Vehicles, return the unit with at least 15% battery. For traditional fuel models, please matches the pickup level. Low charge fees apply if returned drained."
+        )
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+        Text(
+            text = "KYC & RENTAL GUIDE CENTRALE",
+            color = RideNeonCyan,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        Text(
+            text = "Frequently Answered Intel",
+            color = TextPrimaryGlow,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        faqItems.forEach { item ->
+            var expanded by remember { mutableStateOf(false) }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x0AFFFFFF)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .border(
+                        width = 1.dp,
+                        color = if (expanded) RideNeonCyan.copy(alpha = 0.5f) else BorderGlass,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable { expanded = !expanded }
+                    .testTag("faq_accordion_item_${item.hashCode()}")
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = item.question,
+                            color = if (expanded) RideNeonCyan else TextPrimaryGlow,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(0.9f)
+                        )
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = "Expand FAQ",
+                            tint = if (expanded) RideNeonCyan else TextMutedGlow,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = expanded,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = item.answer,
+                            color = TextMutedGlow,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class FaqItem(val question: String, val answer: String)

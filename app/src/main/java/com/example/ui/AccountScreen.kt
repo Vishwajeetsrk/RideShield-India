@@ -253,6 +253,270 @@ fun AccountScreen(
                 }
             }
 
+            // ACTIVE & UPCOMING RENTAL DASHBOARD SECTION
+            item {
+                val vehicles by viewModel.vehicles.collectAsState()
+                val activeBookings = remember(allBookings) {
+                    allBookings.filter { it.status == "ACTIVE" }
+                }
+                val upcomingBookings = remember(allBookings) {
+                    allBookings.filter { it.status == "PENDING" }
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "PROTECTED FLEET DASHBOARD",
+                        color = RideNeonCyan,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+
+                    if (activeBookings.isEmpty() && upcomingBookings.isEmpty()) {
+                        // Reassuring standby card
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0x0EFFFFFF)),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, BorderGlass, RoundedCornerShape(20.dp))
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(RideNeonCyan.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = "Shield standby",
+                                        tint = RideNeonCyan,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "All Rental Systems Standby",
+                                        color = TextPrimaryGlow,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "No active rentals on current key node. Rent a vehicle to activate telemetry.",
+                                        color = TextMutedGlow,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Display active bookings
+                    activeBookings.forEach { booking ->
+                        val vehicle = vehicles.find { it.id == booking.vehicleId }
+                        val vName = vehicle?.name ?: "Premium Secured Vehicle"
+                        val vPlate = vehicle?.registrationNumber ?: "DL-3C-AL-9981"
+                        
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0x1A14B8A6)), // soft emerald background
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, RideNeonCyan, RoundedCornerShape(20.dp))
+                                .padding(16.dp)
+                                .testTag("active_rental_dashboard_card")
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sensors,
+                                            contentDescription = "Live active telemetry",
+                                            tint = RideNeonCyan,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "LIVE ACTIVE RENTAL",
+                                            color = RideNeonCyan,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(RideNeonCyan.copy(alpha = 0.2f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "AI-SECURE LINKED",
+                                            color = RideNeonCyan,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(text = vName, color = TextPrimaryGlow, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "Plate: $vPlate", color = TextMutedGlow, fontSize = 11.sp)
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Divider(color = BorderGlass)
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(text = "INSURANCE PROTECTION", color = TextMutedGlow, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = if (booking.hasPremiumInsurance) "Gold Shield Zero-Depreciation" else "Basic Liability Coverage",
+                                            color = if (booking.hasPremiumInsurance) RideNeonCyan else TextPrimaryGlow,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Button(
+                                        onClick = { viewModel.currentScreen.value = "active_ride" },
+                                        colors = ButtonDefaults.buttonColors(containerColor = RideNeonCyan),
+                                        modifier = Modifier.height(36.dp),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text(text = "MONITOR", color = DeepSlateBackground, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Display upcoming (pending) countdown bookings
+                    upcomingBookings.forEach { booking ->
+                        val vehicle = vehicles.find { it.id == booking.vehicleId }
+                        val vName = vehicle?.name ?: "Premium Secured Vehicle"
+                        val vPlate = vehicle?.registrationNumber ?: "DL-3C-AL-9981"
+                        
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0x156366F1)), // soft blue background
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, RideNeonBlue, RoundedCornerShape(20.dp))
+                                .padding(16.dp)
+                                .testTag("upcoming_rental_dashboard_card")
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.DirectionsCar,
+                                            contentDescription = "Upcoming rental",
+                                            tint = RideNeonBlue,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "RESERVED UPCOMING RIDE",
+                                            color = RideNeonBlue,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(RideNeonBlue.copy(alpha = 0.2f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "READY TO ACTIVATE",
+                                            color = RideNeonBlue,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(text = vName, color = TextPrimaryGlow, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "Plate: $vPlate", color = TextMutedGlow, fontSize = 11.sp)
+
+                                Spacer(modifier = Modifier.height(14.dp))
+                                
+                                // UPCOMING TRIP COUNTDOWN COMPONENT
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF0F172A))
+                                        .border(1.dp, BorderGlass, RoundedCornerShape(12.dp))
+                                        .padding(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Alarm,
+                                                contentDescription = "Countdown",
+                                                tint = AccentOrange,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(text = "TRIP COUNTDOWN", color = TextMutedGlow, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                Text(
+                                                    text = "T-Minus 02:40:15",
+                                                    color = AccentOrange,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            }
+                                        }
+                                        Button(
+                                            onClick = { viewModel.unlockAndStartRide(booking.id) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = RideNeonCyan),
+                                            modifier = Modifier.height(34.dp).testTag("dashboard_unlock_button"),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp)
+                                        ) {
+                                            Text(text = "UNLOCK NOW", color = DeepSlateBackground, fontSize = 9.sp, fontWeight = FontWeight.Black)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // PAST COMPLETED RENTAL HISTORY TRACKER BLOCK
             item {
                 Row(
@@ -308,6 +572,42 @@ fun AccountScreen(
                         vehicleName = "Premium Connected Vehicle"
                     )
                 }
+            }
+
+            // Sign Out Option
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { viewModel.logout() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("account_logout_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRedSOS.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentRedSOS)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "Logout",
+                            tint = AccentRedSOS,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "SIGN OUT OF PORT",
+                            color = AccentRedSOS,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }

@@ -47,7 +47,9 @@ data class Booking(
     val totalFare: Double? = null,
     val beforePhotoUri: String? = null,
     val afterPhotoUri: String? = null,
-    val damageReport: String? = null
+    val damageReport: String? = null,
+    val hasPremiumInsurance: Boolean = false,
+    val insuranceLevel: String? = null
 )
 
 @Keep

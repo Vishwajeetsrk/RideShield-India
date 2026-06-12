@@ -1,6 +1,7 @@
 package com.example.ui
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +56,7 @@ fun MapScreen(
     val activeLat by viewModel.activeLat.collectAsState()
     val activeLng by viewModel.activeLng.collectAsState()
     val routeTrack by viewModel.routeTrack.collectAsState()
+    val isLoadingVehicles by viewModel.isLoadingVehicles.collectAsState()
 
     // Search and filter state variables
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -129,7 +131,22 @@ fun MapScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // High-fidelity Multi-column Adaptive responsive Grid Display
-                if (filteredVehicles.isEmpty()) {
+                if (isLoadingVehicles) {
+                    BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                        val columns = if (maxWidth > 600.dp) 3 else 2
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 100.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(4) {
+                                VehicleSkeletonCard()
+                            }
+                        }
+                    }
+                } else if (filteredVehicles.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -404,14 +421,20 @@ fun MapScreen(
                                     verticalArrangement = Arrangement.spacedBy(10.dp),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    items(filteredVehicles.filter { it.status == "Available" }) { vehicle ->
-                                        VehicleGridCard(
-                                            vehicle = vehicle,
-                                            onClick = {
-                                                viewModel.selectedVehicle.value = vehicle
-                                                onVehicleClick()
-                                            }
-                                        )
+                                    if (isLoadingVehicles) {
+                                        items(3) {
+                                            Box(modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(12.dp)).shimmerEffect())
+                                        }
+                                    } else {
+                                        items(filteredVehicles.filter { it.status == "Available" }) { vehicle ->
+                                            VehicleGridCard(
+                                                vehicle = vehicle,
+                                                onClick = {
+                                                    viewModel.selectedVehicle.value = vehicle
+                                                    onVehicleClick()
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -427,14 +450,20 @@ fun MapScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 16.dp)
                             ) {
-                                items(filteredVehicles.filter { it.status == "Available" }) { vehicle ->
-                                    VehicleHorizontalCard(
-                                        vehicle = vehicle,
-                                        onClick = {
-                                            viewModel.selectedVehicle.value = vehicle
-                                            onVehicleClick()
-                                        }
-                                    )
+                                if (isLoadingVehicles) {
+                                    items(3) {
+                                        Box(modifier = Modifier.width(280.dp).height(120.dp).padding(end = 12.dp).clip(RoundedCornerShape(18.dp)).shimmerEffect())
+                                    }
+                                } else {
+                                    items(filteredVehicles.filter { it.status == "Available" }) { vehicle ->
+                                        VehicleHorizontalCard(
+                                            vehicle = vehicle,
+                                            onClick = {
+                                                viewModel.selectedVehicle.value = vehicle
+                                                onVehicleClick()
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -731,8 +760,27 @@ fun SearchAndFiltersPanel(
     }
 }
 
+fun getSafetyRating(vehicle: Vehicle): String {
+    val base = if (vehicle.type == "car") 4.6 else 4.4
+    // Calculate dynamically using positive hashCode range and battery factor
+    val numericHash = kotlin.math.abs(vehicle.registrationNumber.hashCode() % 3)
+    val dynamicPercentFactor = (vehicle.batteryPct % 4) * 0.1
+    val result = base + (numericHash * 0.1) + dynamicPercentFactor
+    return String.format(java.util.Locale.US, "%.1f", result.coerceIn(4.0, 5.0))
+}
+
 @Composable
 fun PremiumGridDashboardCard(vehicle: Vehicle, onClick: () -> Unit) {
+    val modelStyle = when(vehicle.imageType) {
+        "sedan" -> "LUXURY SEDAN"
+        "suv" -> "ADVENTURE 4x4 SUV"
+        "sports_car" -> "EV COUPE SPORT"
+        "scooter" -> "E-SCOOTER V4"
+        "sports_bike" -> "ADVENTURE BIKE"
+        else -> "PREMIUM VEHICLE"
+    }
+    val friendlyLoc = getFriendlyLocationName(vehicle.lat, vehicle.lng)
+
     Card(
         colors = CardDefaults.cardColors(containerColor = CardBackgroundGlass),
         shape = RoundedCornerShape(18.dp),
@@ -758,11 +806,42 @@ fun PremiumGridDashboardCard(vehicle: Vehicle, onClick: () -> Unit) {
                         maxLines = 1
                     )
                     Text(
+                        text = modelStyle,
+                        color = TextMutedGlow,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
                         text = vehicle.registrationNumber,
                         color = RideNeonCyan,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // High contrast dynamic Safety Badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(AccentTeal.copy(alpha = 0.15f))
+                            .border(1.dp, AccentTeal.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.VerifiedUser, contentDescription = "Shield Verified", tint = AccentTeal, modifier = Modifier.size(10.dp))
+                            Text(
+                                text = "🛡️ Safety: ${getSafetyRating(vehicle)} ★",
+                                color = AccentTeal,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
                 Icon(
                     imageVector = if (vehicle.type == "car") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler,
@@ -772,7 +851,30 @@ fun PremiumGridDashboardCard(vehicle: Vehicle, onClick: () -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Location Section
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Location",
+                    tint = AccentOrange,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = friendlyLoc,
+                    color = AccentOrange,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Charge stats and range sliders
             Row(
@@ -795,7 +897,7 @@ fun PremiumGridDashboardCard(vehicle: Vehicle, onClick: () -> Unit) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Divider(color = BorderGlass)
 
@@ -845,12 +947,20 @@ fun VehicleGridCard(vehicle: Vehicle, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = vehicle.name,
-                    color = TextPrimaryGlow,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = vehicle.name,
+                        color = TextPrimaryGlow,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "🛡️ Safety: ${getSafetyRating(vehicle)} ★",
+                        color = AccentTeal,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Icon(
                     imageVector = if (vehicle.type == "car") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler,
                     contentDescription = null,
@@ -924,6 +1034,16 @@ private fun getBengaluruNodes(): List<MapNode> {
 
 @Composable
 fun VehicleHorizontalCard(vehicle: Vehicle, onClick: () -> Unit) {
+    val modelStyle = when(vehicle.imageType) {
+        "sedan" -> "LUXURY SEDAN"
+        "suv" -> "ADVENTURE 4x4 SUV"
+        "sports_car" -> "EV COUPE SPORT"
+        "scooter" -> "E-SCOOTER V4"
+        "sports_bike" -> "ADVENTURE BIKE"
+        else -> "PREMIUM VEHICLE"
+    }
+    val friendlyLoc = getFriendlyLocationName(vehicle.lat, vehicle.lng)
+
     Card(
         colors = CardDefaults.cardColors(containerColor = CardBackgroundGlass),
         shape = RoundedCornerShape(18.dp),
@@ -940,17 +1060,55 @@ fun VehicleHorizontalCard(vehicle: Vehicle, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = vehicle.name,
-                    color = TextPrimaryGlow,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = vehicle.name,
+                        color = TextPrimaryGlow,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = modelStyle,
+                        color = TextMutedGlow,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = "🛡️ Safety: ${getSafetyRating(vehicle)} ★",
+                        color = AccentTeal,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Icon(
                     imageVector = if (vehicle.type == "car") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler,
                     contentDescription = null,
                     tint = RideNeonCyan,
                     modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Location Box
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Location",
+                    tint = AccentOrange,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = friendlyLoc,
+                    color = AccentOrange,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
             }
 
@@ -980,11 +1138,62 @@ fun VehicleHorizontalCard(vehicle: Vehicle, onClick: () -> Unit) {
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = "Check Specifications ➜",
+                    text = "Specs Modal ➜",
                     color = RideNeonBlue,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+        }
+    }
+}
+
+fun getFriendlyLocationName(lat: Double, lng: Double): String {
+    return when {
+        lat > 12.980 -> "Indiranagar Metro Hub, BLR"
+        lat > 12.975 -> "Vidhana Soudha Area"
+        lat > 12.970 && lng > 77.600 -> "MG Road Crossing, BLR"
+        lat > 12.968 -> "Cubbon Park Center"
+        lat > 12.960 -> "Lalbagh Botanical Zone"
+        else -> "Koramangala Smart Zone"
+    }
+}
+
+@Composable
+fun Modifier.shimmerEffect(): Modifier {
+    val transition = rememberInfiniteTransition(label = "shimmer_trans")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha_anim"
+    )
+    return this.background(Color.White.copy(alpha = alpha * 0.12f))
+}
+
+@Composable
+fun VehicleSkeletonCard() {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardBackgroundGlass),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .border(1.dp, BorderGlass, RoundedCornerShape(18.dp))
+            .shimmerEffect()
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(modifier = Modifier.width(120.dp).height(18.dp).clip(RoundedCornerShape(4.dp)).background(Color(0x1FFFFFFF)))
+            Box(modifier = Modifier.width(80.dp).height(11.dp).clip(RoundedCornerShape(4.dp)).background(Color(0x0EFFFFFF)))
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(4.dp)).background(Color(0x0EFFFFFF)))
+            Spacer(modifier = Modifier.weight(1f))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Box(modifier = Modifier.width(50.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(Color(0x1FFFFFFF)))
+                Box(modifier = Modifier.width(90.dp).height(20.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x2200E5FF)))
             }
         }
     }

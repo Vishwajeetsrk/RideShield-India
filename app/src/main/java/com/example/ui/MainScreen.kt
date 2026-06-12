@@ -32,6 +32,7 @@ fun MainScreen(viewModel: RideShieldViewModel) {
     val currentTab by viewModel.currentScreen.collectAsState()
     val activeAlarm by viewModel.activePopupAlert.collectAsState()
     val activeBooking by viewModel.activeBooking.collectAsState()
+    val newestBookingSuccess by viewModel.newestBookingSuccess.collectAsState()
 
     var showActiveNotificationsDialog by remember { mutableStateOf(false) }
 
@@ -115,6 +116,15 @@ fun MainScreen(viewModel: RideShieldViewModel) {
             FleetIncidentAlertsDialog(
                 viewModel = viewModel,
                 onDismiss = { showActiveNotificationsDialog = false }
+            )
+        }
+
+        // RENTAL CONFIRMATION SUCCESS NOTIFICATION SYSTEM OVERLAY
+        if (newestBookingSuccess != null) {
+            BookingSuccessSystemOverlay(
+                viewModel = viewModel,
+                booking = newestBookingSuccess!!,
+                onDismiss = { viewModel.newestBookingSuccess.value = null }
             )
         }
     }
@@ -448,5 +458,176 @@ fun FleetIncidentAlertsDialog(
         },
         containerColor = Color(0xFF0B0F1A),
         modifier = Modifier.border(1.dp, BorderGlass, RoundedCornerShape(28.dp))
+    )
+}
+
+@Composable
+fun BookingSuccessSystemOverlay(
+    viewModel: RideShieldViewModel,
+    booking: com.example.data.Booking,
+    onDismiss: () -> Unit
+) {
+    val vehicles by viewModel.vehicles.collectAsState()
+    val vehicle = vehicles.find { it.id == booking.vehicleId }
+    val plate = vehicle?.registrationNumber ?: "KA-01-XX-9999"
+    val name = vehicle?.name ?: "Premium Vehicle"
+    val rate = vehicle?.pricePerHr ?: 120.0
+    val trackingUrl = "https://rideshield.in/gps-telemetry/track-device/${booking.id.takeLast(8)}"
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x1F10B981)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Success",
+                        tint = AccentTeal,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "RENTAL SECURED SUCCESSFULLY!",
+                    color = TextPrimaryGlow,
+                    fontSize = 15.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Your telemetry shield and active anti-theft immobilizers are now initialized for transmission.",
+                    color = TextMutedGlow,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Ticket Detail Box
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0x16FFFFFF)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, BorderGlass, RoundedCornerShape(12.dp))
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("BOOKING REFERENCE:", color = TextMutedGlow, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "SHIELD-REF-${booking.id.uppercase().takeLast(6)}",
+                                color = RideNeonCyan,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.testTag("booking_ref_number")
+                            )
+                        }
+
+                        Divider(color = BorderGlass)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("VEHICLE:", color = TextMutedGlow, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(text = name, color = TextPrimaryGlow, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("STATE/PLATE:", color = TextMutedGlow, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(text = plate, color = AccentTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("BASE RATE:", color = TextMutedGlow, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "₹$rate / hr", color = TextPrimaryGlow, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // Simulated GPS tracking card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0x2A1D4ED8)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0x403B82F6), RoundedCornerShape(12.dp))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = RideNeonBlue, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("SIMULATED GPS TRACKING LINK", color = RideNeonBlue, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                        }
+
+                        Text(
+                            text = trackingUrl,
+                            color = Color(0xFF60A5FA),
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.testTag("simulated_gps_tracking_link")
+                        )
+
+                        Text(
+                            text = "Live telemetry update active: Ping received successfully.",
+                            color = TextMutedGlow,
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    viewModel.unlockAndStartRide(booking.id)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = RideNeonCyan),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("success_unlock_now_button")
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.LockOpen, contentDescription = null, tint = DeepSlateBackground)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Unlock & Connect CCTV Now", color = DeepSlateBackground, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Dismiss & Track Later", color = TextMutedGlow, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        containerColor = Color(0xFF070B14),
+        modifier = Modifier.border(1.dp, BorderGlass, RoundedCornerShape(24.dp))
     )
 }

@@ -26,6 +26,8 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
     val activeBooking = bookingDao.getActiveBookingFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val securityAlerts = alertDao.getAllAlertsFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val isLoadingVehicles = MutableStateFlow(true)
+
     // Search and Filtering states
     val searchQuery = MutableStateFlow("")
     val selectedType = MutableStateFlow("All") // "All", "car", "bike"
@@ -37,7 +39,18 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
     val filteredVehicles = combine(vehicles, searchQuery, selectedType) { list, query, type ->
         list.filter { vehicle ->
             val matchesType = type == "All" || vehicle.type.lowercase() == type.lowercase()
-            val matchesQuery = query.isEmpty() || vehicle.name.contains(query, ignoreCase = true) || vehicle.registrationNumber.contains(query, ignoreCase = true)
+            val friendlyLoc = when {
+                vehicle.lat > 12.980 -> "Indiranagar Metro Hub, BLR"
+                vehicle.lat > 12.975 -> "Vidhana Soudha Area"
+                vehicle.lat > 12.970 && vehicle.lng > 77.600 -> "MG Road Crossing, BLR"
+                vehicle.lat > 12.968 -> "Cubbon Park Center"
+                vehicle.lat > 12.960 -> "Lalbagh Botanical Zone"
+                else -> "Koramangala Smart Zone"
+            }
+            val matchesQuery = query.isEmpty() ||
+                    vehicle.name.contains(query, ignoreCase = true) ||
+                    vehicle.registrationNumber.contains(query, ignoreCase = true) ||
+                    friendlyLoc.contains(query, ignoreCase = true)
             matchesType && matchesQuery
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -98,6 +111,9 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
     // Dynamic Island notification active alert
     val activePopupAlert = MutableStateFlow<SecurityAlert?>(null)
 
+    // Last confirmed booking for the success dialog notification system
+    val newestBookingSuccess = MutableStateFlow<Booking?>(null)
+
     // Damage processing states
     val damageProcessing = MutableStateFlow(false)
     val beforeBitmapState = MutableStateFlow<Bitmap?>(null)
@@ -121,6 +137,20 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
                     Vehicle("v5", "Tata Nexon EV Max", "car", "KA-04-EV-8820", 200.0, 68, 280, 12.9810, 77.6150, "Available", "suv")
                 )
                 db.vehicleDao().insertVehicles(mockFleet)
+            }
+        }
+
+        viewModelScope.launch {
+            isLoadingVehicles.value = true
+            kotlinx.coroutines.delay(1000)
+            isLoadingVehicles.value = false
+        }
+
+        viewModelScope.launch {
+            combine(searchQuery, selectedType) { _, _ -> }.collect {
+                isLoadingVehicles.value = true
+                kotlinx.coroutines.delay(650)
+                isLoadingVehicles.value = false
             }
         }
 
@@ -222,14 +252,15 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun signUpAndSyncFirebase(email: String, name: String, phone: String, option: String = "SIGN_UP") {
+    fun signUpAndSyncFirebase(email: String, name: String, phone: String, passwordState: String, option: String = "SIGN_UP") {
         viewModelScope.launch {
             authLoading.value = true
             authError.value = null
             try {
                 val mAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                val password = passwordState.ifEmpty { "default123!" }
                 if (option == "SIGN_UP") {
-                    mAuth.createUserWithEmailAndPassword(email, "default123!").addOnCompleteListener { task ->
+                    mAuth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             firebaseAuthStatus.value = "Registered & Synced with Firebase Cloud"
                             isFirebaseAuthSync.value = true
@@ -238,7 +269,7 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
                         }
                     }
                 } else {
-                    mAuth.signInWithEmailAndPassword(email, "default123!").addOnCompleteListener { task ->
+                    mAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             firebaseAuthStatus.value = "Logged in & Synced with Firebase Cloud"
                             isFirebaseAuthSync.value = true
@@ -254,17 +285,24 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
             } finally {
                 val cleanedPhone = phone.ifEmpty { "9876543210" }
                 val existing = profileDao.getProfileByPhone(cleanedPhone)
-                val newProfile = existing ?: UserProfile(
+                val finalProfile = existing ?: UserProfile(
                     phone = cleanedPhone,
                     name = name.ifEmpty { "Vishwajeet Kumar" },
-                    aadhaar = "9988-1245-8812", // pre-verified to bypass KYC block in demo if needed, or let's keep isKycVerified false initially or verified
-                    drivingLicense = "DL-2026-N2021",
-                    isKycVerified = true, // instantly authenticated to simplify access
+                    aadhaar = "",
+                    drivingLicense = "",
+                    isKycVerified = false,
                     selfieUrl = email
                 )
-                profileDao.saveProfile(newProfile)
+                // If it is a new profile, we must force a fresh KYC process
+                profileDao.saveProfile(finalProfile)
                 authLoading.value = false
-                currentScreen.value = "marketplace"
+                
+                // Route to KYC status screen if not verified, otherwise allow into marketplace
+                if (finalProfile.isKycVerified) {
+                    currentScreen.value = "marketplace"
+                } else {
+                    currentScreen.value = "kyc"
+                }
             }
         }
     }
@@ -308,7 +346,7 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     // Vehicle bookings
-    fun startBooking(vehicle: Vehicle) {
+    fun startBooking(vehicle: Vehicle, hasInsurance: Boolean = false, insuranceLevel: String? = null) {
         viewModelScope.launch {
             val prof = profile.value ?: return@launch
             val bookingId = "b_" + System.currentTimeMillis()
@@ -318,6 +356,12 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
             val updatedVehicle = vehicle.copy(status = "Booked")
             vehicleDao.updateVehicle(updatedVehicle)
 
+            val adjustedFare = vehicle.pricePerHr + if (hasInsurance) {
+                if (insuranceLevel == "GOLD") 60.0 else 25.0
+            } else {
+                0.0
+            }
+
             val newBooking = Booking(
                 id = bookingId,
                 vehicleId = vehicle.id,
@@ -325,10 +369,14 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
                 startTime = System.currentTimeMillis(),
                 status = "PENDING",
                 beforePhotoUri = beforeUri,
-                baseFare = vehicle.pricePerHr
+                baseFare = adjustedFare,
+                hasPremiumInsurance = hasInsurance,
+                insuranceLevel = insuranceLevel
             )
             bookingDao.insertBooking(newBooking)
             selectedVehicle.value = updatedVehicle
+            // Trigger the success state notification alert modal
+            newestBookingSuccess.value = newBooking
         }
     }
 
@@ -348,6 +396,7 @@ class RideShieldViewModel(application: Application) : AndroidViewModel(applicati
             isCctvRecording.value = true
 
             selectedVehicle.value = updatedVeh
+            newestBookingSuccess.value = null // dismiss success screen once unlocked
             currentScreen.value = "active_ride"
 
             // Log warning siren off

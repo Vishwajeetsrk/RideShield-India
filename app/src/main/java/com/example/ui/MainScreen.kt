@@ -82,6 +82,7 @@ fun MainScreen(viewModel: RideShieldViewModel) {
                     )
                     "owner" -> OwnerDashboardScreen(viewModel)
                     "help" -> AiAssistantSheet(viewModel)
+                    "account" -> AccountScreen(viewModel)
                 }
             }
 
@@ -301,6 +302,22 @@ fun BottomFuturisticNavbar(viewModel: RideShieldViewModel, currentTab: String) {
                 indicatorColor = Color(0x1A10B981) // bg-emerald-400/10
             ),
             modifier = Modifier.testTag("tab_chat")
+        )
+
+        // Tab 5: Account Profile
+        NavigationBarItem(
+            selected = currentTab == "account",
+            onClick = { viewModel.currentScreen.value = "account" },
+            icon = { Icon(Icons.Default.AccountBox, contentDescription = "Account") },
+            label = { Text("My Account", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = RideNeonCyan,
+                unselectedIconColor = TextMutedGlow,
+                selectedTextColor = RideNeonCyan,
+                unselectedTextColor = TextMutedMuted,
+                indicatorColor = Color(0x1A10B981) // bg-emerald-400/10
+            ),
+            modifier = Modifier.testTag("tab_account")
         )
     }
 }

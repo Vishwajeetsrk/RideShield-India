@@ -101,29 +101,222 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
     val loading by viewModel.authLoading.collectAsState()
     val otpSent by viewModel.isOtpSent.collectAsState()
 
+    var authMode by remember { mutableStateOf("OTP") } // "OTP" or "FIREBASE"
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var firebaseOption by remember { mutableStateOf("SIGN_UP") } // "SIGN_UP" or "SIGN_IN"
+
     var phone by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
 
-    AnimatedContent(targetState = otpSent, label = "otpTransition") { isSent ->
-        if (!isSent) {
-            Column(
+    if (authMode == "FIREBASE") {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .floatingAnimation(translationYMax = 4f, durationMs = 3000)
+                .clip(RoundedCornerShape(24.dp))
+                .background(CssThemeVariables.`--bg-card-glass`)
+                .border(1.dp, CssThemeVariables.`--border-glass`, RoundedCornerShape(24.dp))
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Firebase Cloud Auth Center",
+                color = CssThemeVariables.`--text-primary`,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = "Configure or access your safe profile index instantly using Cloud keys.",
+                color = CssThemeVariables.`--text-muted`,
+                fontSize = 11.sp,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+            )
+
+            // Segmented option tab
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .floatingAnimation(translationYMax = 4f, durationMs = 3000)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(CssThemeVariables.`--bg-card-glass`)
-                    .border(1.dp, CssThemeVariables.`--border-glass`, RoundedCornerShape(24.dp))
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x1F94A3B8))
+                    .padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Aadhaar Linked Mobile Sign In",
-                    color = CssThemeVariables.`--text-primary`,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (firebaseOption == "SIGN_UP") CssThemeVariables.`--accent-neon-blue` else Color.Transparent)
+                        .clickable { firebaseOption = "SIGN_UP" }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("CLOUD REGISTER", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (firebaseOption == "SIGN_IN") CssThemeVariables.`--accent-neon-blue` else Color.Transparent)
+                        .clickable { firebaseOption = "SIGN_IN" }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("SECURE SIGN IN", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email Address", color = CssThemeVariables.`--text-muted`) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = CssThemeVariables.`--text-primary`,
+                    unfocusedTextColor = CssThemeVariables.`--text-primary`,
+                    focusedBorderColor = CssThemeVariables.`--accent-neon-cyan`,
+                    unfocusedBorderColor = CssThemeVariables.`--border-glass`
+                ),
+                modifier = Modifier.fillMaxWidth().testTag("firebase_email_input"),
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = CssThemeVariables.`--accent-neon-cyan`) }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password (Min 6 chars)", color = CssThemeVariables.`--text-muted`) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = CssThemeVariables.`--text-primary`,
+                    unfocusedTextColor = CssThemeVariables.`--text-primary`,
+                    focusedBorderColor = CssThemeVariables.`--accent-neon-cyan`,
+                    unfocusedBorderColor = CssThemeVariables.`--border-glass`
+                ),
+                modifier = Modifier.fillMaxWidth().testTag("firebase_password_input"),
+                leadingIcon = { Icon(Icons.Default.LockOpen, contentDescription = "Password", tint = CssThemeVariables.`--accent-neon-cyan`) }
+            )
+
+            if (firebaseOption == "SIGN_UP") {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Full Name", color = CssThemeVariables.`--text-muted`) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = CssThemeVariables.`--text-primary`,
+                        unfocusedTextColor = CssThemeVariables.`--text-primary`,
+                        focusedBorderColor = CssThemeVariables.`--accent-neon-cyan`,
+                        unfocusedBorderColor = CssThemeVariables.`--border-glass`
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("firebase_name_input"),
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Name", tint = CssThemeVariables.`--accent-neon-cyan`) }
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { if (it.length <= 10) phone = it },
+                    label = { Text("Mobile Number", color = CssThemeVariables.`--text-muted`) },
+                    prefix = { Text("+91 ", color = CssThemeVariables.`--text-primary`) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = CssThemeVariables.`--text-primary`,
+                        unfocusedTextColor = CssThemeVariables.`--text-primary`,
+                        focusedBorderColor = CssThemeVariables.`--accent-neon-cyan`,
+                        unfocusedBorderColor = CssThemeVariables.`--border-glass`
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("firebase_phone_input"),
+                    leadingIcon = { Icon(Icons.Default.PhoneAndroid, contentDescription = "Phone", tint = CssThemeVariables.`--accent-neon-cyan`) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = { viewModel.signUpAndSyncFirebase(email, name, phone, firebaseOption) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .testTag("firebase_auth_submit_button"),
+                colors = ButtonDefaults.buttonColors(containerColor = CssThemeVariables.`--accent-neon-blue`),
+                shape = RoundedCornerShape(12.dp),
+                enabled = email.contains("@") && password.length >= 6 && !loading
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text(
+                        if (firebaseOption == "SIGN_UP") "Create Secure Profile" else "Verify Port Access Gateway",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+
+            val authError by viewModel.authError.collectAsState()
+            if (authError != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(text = authError!!, color = AccentRedSOS, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = "← Use Aadhaar Mobile OTP instead",
+                color = CssThemeVariables.`--accent-neon-cyan`,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clickable { authMode = "OTP" }
+                    .padding(8.dp)
+            )
+        }
+    } else {
+        AnimatedContent(targetState = otpSent, label = "otpTransition") { isSent ->
+            if (!isSent) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .floatingAnimation(translationYMax = 4f, durationMs = 3000)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(CssThemeVariables.`--bg-card-glass`)
+                        .border(1.dp, CssThemeVariables.`--border-glass`, RoundedCornerShape(24.dp))
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Aadhaar Phone Sign In",
+                            color = CssThemeVariables.`--text-primary`,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(CssThemeVariables.`--accent-neon-cyan`.copy(alpha = 0.15f))
+                                .clickable { authMode = "FIREBASE" }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                "Use Firebase Auth",
+                                color = CssThemeVariables.`--accent-neon-cyan`,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -322,6 +515,7 @@ fun OtpLoginInterface(viewModel: RideShieldViewModel) {
             }
         }
     }
+}
 }
 
 @Composable

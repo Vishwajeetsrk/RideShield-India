@@ -22,6 +22,7 @@ val AccentRedSOS = Color(0xFFEF4444)         // Emergency triggers
 // Grey scaling
 val TextPrimaryGlow = Color(0xFFF8FAFC)
 val TextMutedGlow = Color(0xFF94A3B8)
+val TextMutedMuted = Color(0xFF64748B)
 val DarkPurpleMuted = Color(0xFF1E1B4B)
 
 /**
